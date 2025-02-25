@@ -7,6 +7,8 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 import sys
 from typing import List, Dict, Set
+
+from Vulnerabilities_scanner.csrf_scanner import csrf_scanner
 from Vulnerabilities_scanner.sensitive_info import sensitive_info_scanner
 from Vulnerabilities_scanner.sql_injection import sql_injection_scanner
 from Vulnerabilities_scanner.xss_scanner import xss_scanner
@@ -61,6 +63,10 @@ class WebSecurityScanner:
         except Exception as e:
             print(f"Error crawling {url}: {str(e)}")
 
+    def check_csrf(self, url: str) -> None:
+        csrf_scanner(self, url)
+        """Test for potential Cross-Site Request Forgery (CSRF) vulnerabilities"""
+
     def check_sql_injection(self, url: str) -> None:
         """Test for potential SQL injection vulnerabilities"""
         sql_injection_scanner(self,url)
@@ -91,6 +97,7 @@ class WebSecurityScanner:
                 executor.submit(self.check_sql_injection, url)
                 executor.submit(self.check_xss, url)
                 executor.submit(self.check_sensitive_info, url)
+                executor.submit(self.check_csrf, url)
 
         return self.vulnerabilities
 
