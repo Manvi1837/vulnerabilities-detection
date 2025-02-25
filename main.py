@@ -7,6 +7,10 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 import sys
 from typing import List, Dict, Set
+from Vulnerabilities_scanner.sensitive_info import sensitive_info_scanner
+from Vulnerabilities_scanner.sql_injection import sql_injection_scanner
+from Vulnerabilities_scanner.xss_scanner import xss_scanner
+
 
 class WebSecurityScanner:
     def __init__(self, target_url: str, max_depth: int = 3):
@@ -59,56 +63,15 @@ class WebSecurityScanner:
 
     def check_sql_injection(self, url: str) -> None:
         """Test for potential SQL injection vulnerabilities"""
-        sql_payloads = ["'", "1' OR '1'='1", "' OR 1=1--", "' UNION SELECT NULL--"]
-
-        for payload in sql_payloads:
-            try:
-                # Test GET parameters
-                parsed = urllib.parse.urlparse(url)
-                params = urllib.parse.parse_qs(parsed.query)
-
-                for param in params:
-                    test_url = url.replace(f"{param}={params[param][0]}",
-                                           f"{param}={payload}")
-                    response = self.session.get(test_url)
-
-                    # Look for SQL error messages
-                    if any(error in response.text.lower() for error in
-                           ['sql', 'mysql', 'sqlite', 'postgresql', 'oracle']):
-                        self.report_vulnerability({
-                            'type': 'SQL Injection',
-                            'url': url,
-                            'parameter': param,
-                            'payload': payload
-                        })
-
-            except Exception as e:
-                print(f"Error testing SQL injection on {url}: {str(e)}")
+        sql_injection_scanner(self,url)
 
     def check_sensitive_info(self, url: str) -> None:
         """Check for exposed sensitive information"""
-        sensitive_patterns = {
-            'email': r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
-            'phone': r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b',
-            'ssn': r'\b\d{3}-\d{2}-\d{4}\b',
-            'api_key': r'api[_-]?key[_-]?([\'"|`])([a-zA-Z0-9]{32,45})\1'
-        }
+        sensitive_info_scanner(self,url)
 
-        try:
-            response = self.session.get(url)
-
-            for info_type, pattern in sensitive_patterns.items():
-                matches = re.finditer(pattern, response.text)
-                for match in matches:
-                    self.report_vulnerability({
-                        'type': 'Sensitive Information Exposure',
-                        'url': url,
-                        'info_type': info_type,
-                        'pattern': pattern
-                    })
-
-        except Exception as e:
-            print(f"Error checking sensitive information on {url}: {str(e)}")
+    def check_xss(self, url: str) -> None:
+        """Test for potential Cross-Site Scripting vulnerabilities"""
+        xss_scanner(self,url)
 
     def scan(self) -> List[Dict]:
         """
@@ -126,7 +89,7 @@ class WebSecurityScanner:
         with ThreadPoolExecutor(max_workers=5) as executor:
             for url in self.visited_urls:
                 executor.submit(self.check_sql_injection, url)
-                # executor.submit(self.check_xss, url)
+                executor.submit(self.check_xss, url)
                 executor.submit(self.check_sensitive_info, url)
 
         return self.vulnerabilities
@@ -140,10 +103,6 @@ class WebSecurityScanner:
         print()
 
 if __name__ == "__main__":
-    # if len(sys.argv) != 2:
-    #     print("Usage: python scanner.py <target_url>")
-    #     sys.exit(1)
-
     target_url = "http://testphp.vulnweb.com/"
     scanner = WebSecurityScanner(target_url)
     vulnerabilities = scanner.scan()
