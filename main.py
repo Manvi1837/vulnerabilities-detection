@@ -4,13 +4,21 @@ from bs4 import BeautifulSoup
 import urllib.parse
 import colorama
 import re
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
 import sys
+from wappalyzer import Wappalyzer, WebPage
 from typing import List, Dict, Set
-
+from Vulnerabilities_scanner.broken_access_control import broken_access_control_scanner
 from Vulnerabilities_scanner.csrf_scanner import csrf_scanner
+from Vulnerabilities_scanner.insecure_design import insecure_design_scanner
+from Vulnerabilities_scanner.scurity_headers import check_security_headers
+from Vulnerabilities_scanner.secuiry_misconfigurations import check_security_misconfigurations
 from Vulnerabilities_scanner.sensitive_info import sensitive_info_scanner
 from Vulnerabilities_scanner.sql_injection import sql_injection_scanner
+from Vulnerabilities_scanner.ssrf_scanner import ssrf_scanner
+from Vulnerabilities_scanner.vulnerable_components_scan import check_vulnerable_dependencies, \
+    check_outdated_web_components
 from Vulnerabilities_scanner.xss_scanner import xss_scanner
 
 
@@ -63,6 +71,12 @@ class WebSecurityScanner:
         except Exception as e:
             print(f"Error crawling {url}: {str(e)}")
 
+    def security_headers_scan(self, url: str) -> None:
+        check_security_headers(self,url)
+
+    def check_ssrf(self,url:str)->None:
+        ssrf_scanner(self,url)
+
     def check_csrf(self, url: str) -> None:
         csrf_scanner(self, url)
         """Test for potential Cross-Site Request Forgery (CSRF) vulnerabilities"""
@@ -78,6 +92,22 @@ class WebSecurityScanner:
     def check_xss(self, url: str) -> None:
         """Test for potential Cross-Site Scripting vulnerabilities"""
         xss_scanner(self,url)
+
+    def check_broken_access_control(self, url: str) -> None:
+        """Check for Broken Access Control vulnerabilities."""
+        broken_access_control_scanner(self, url)
+
+    def check_insecure_design(self, url: str) -> None:
+        """Check for Insecure Design vulnerabilities"""
+        insecure_design_scanner(self, url)
+
+    def check_vulnerable_components(self,url:str) -> None:
+        """Run both dependency and outdated component checks"""
+        check_vulnerable_dependencies(self)
+        check_outdated_web_components(self, url)
+
+    def scanner_security_misconfigurations(self,url:str)->None:
+        check_security_misconfigurations(self,url)
 
     def scan(self) -> List[Dict]:
         """
@@ -98,6 +128,12 @@ class WebSecurityScanner:
                 executor.submit(self.check_xss, url)
                 executor.submit(self.check_sensitive_info, url)
                 executor.submit(self.check_csrf, url)
+                executor.submit(self.check_ssrf, url)
+                executor.submit(self.check_broken_access_control, url)
+                executor.submit(self.check_insecure_design, url)
+                executor.submit(self.check_vulnerable_components,url)
+                executor.submit(self.security_headers_scan, url)
+                executor.submit(self.scanner_security_misconfigurations, url)
 
         return self.vulnerabilities
 
