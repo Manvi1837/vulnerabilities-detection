@@ -19,8 +19,11 @@ def csrf_scanner(self, url: str) -> None:
 
             # Check if there's an anti-CSRF token in the form
             csrf_token = None
+            csrf_filed_names=['csrf', 'token', 'authenticity_token', '_csrf', 'xsrf', 'x-csrf-token']
             for input_tag in inputs:
-                if input_tag.get('name') in ['csrf', 'token', 'authenticity_token']:  # Common names for CSRF tokens
+                if input_tag.get('name') and any(
+                    key in input_tag.get('name').lower() for key in csrf_filed_names
+                ):  # Common names for CSRF tokens
                     csrf_token = input_tag.get('value')
                     break
 
